@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Blocks 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #fff;
+            font-family: 'Luckiest Guy', cursive;
+            text-align: center;
+        }
+        
+		#overlay h1, #overlay p {
+			text-align: center;
+		}
+
+		#key-config-options {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		#key-config-options div {
+			text-align: center;
+		}
+        
+		/* Intro Video Styles */
+		#intro-video {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			z-index: 20; /* Ensure it's above other elements */
+			display: block; /* Visible initially */
+			transition: opacity 1s ease; /* Add transition for fade-out effect */
+		}
+
+		/* Hide the video after intro */
+		#intro-video.hidden {
+			display: none;
+		}
+		
+		/* Ending Video Styles */
+		#cutscene-video {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			z-index: 30; /* Higher than other elements */
+			display: none; /* Initially hidden */
+			opacity: 0;
+			transition: opacity 0.5s ease;
+		}
+
+		#cutscene-video.hidden {
+			display: none;
+		}
+        
+        #overlay.hidden {
+            display: none;
+        }
+        #next-piece {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            height: 150px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid #fff;
+            display: none;
+            z-index: 5;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 24px;
+            font-family: 'Luckiest Guy', cursive;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000,
+                         -1px 1px 0 #000, 1px 1px 0 #000;
+            display: none;
+            z-index: 5;
+        }
+        #opponent-hp {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            color: #fff;
+            font-size: 24px;
+            font-family: 'Luckiest Guy', cursive;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000,
+                         -1px 1px 0 #000, 1px 1px 0 #000;
+            display: none;
+            z-index: 5;
+        }
+        #time-remaining {
+            position: absolute;
+            top: 90px;
+            left: 10px;
+            color: #fff;
+            font-size: 24px;
+            font-family: 'Luckiest Guy', cursive;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000,
+                         -1px 1px 0 #000, 1px 1px 0 #000;
+            display: none;
+            z-index: 5;
+        }
+        
+        /* Blinking Text Effect */
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .blinking {
+            animation: blink 1s infinite;
+        }
+        
+		.prevent-select {
+		  -webkit-user-select: none; /* Safari */
+		  -ms-user-select: none; /* IE 10 and IE 11 */
+		  user-select: none; /* Standard syntax */
+		}
+        
+        @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap');
+        
+		/* Add smooth transitions if needed */
+		#character1, #character2 {
+			transition: left 0.5s ease-out, right 0.5s ease-out;
+		}
+		
+		#story-text {
+			position: absolute;
+			bottom: 10%;
+			width: 100%;
+			text-align: center;
+			color: #fff;
+			font-size: 24px;
+			text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+		}
+
+		#story-text-background {
+			display: inline-block;
+			background-color: rgba(0, 0, 0, 0); /* Starts transparent */
+			padding: 20px;
+			border-radius: 15px;
+			margin: 0 auto;
+			max-width: 80%;
+			transition: background-color 0.5s ease-in; /* Fade in the background */
+		}
+		
+		/* Loading Screen Styles */
+		#loading-screen {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: #000; /* Black background */
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 100; /* Ensure it's above other elements */
+		}
+
+		#loading-content {
+			text-align: center;
+			color: #fff;
+			font-family: 'Luckiest Guy', cursive;
+		}
+
+		#loading-bar-container {
+			width: 300px;
+			height: 30px;
+			background-color: #444;
+			border: 2px solid #fff;
+			border-radius: 15px;
+			margin-top: 20px;
+			overflow: hidden;
+		}
+
+		#loading-bar {
+			width: 0%;
+			height: 100%;
+			background-color: #00ff00; /* Green loading bar */
+			transition: width 0.2s ease-in-out;
+		}
+
+
+    </style>
+    <!-- Import map for module imports -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
+    <!-- Include Howler.js -->
+    <script src="howler.min.js"></script>
+</head>
+<body class="prevent-select">
+    <!-- Intro Video -->
+    <video id="intro-video" autoplay muted playsinline>
+        <source src="video/intro-video.mp4" type="video/mp4">
+        <source src="video/intro-video.av1" type='video/mp4; codecs="av01.0.05M.08"'>
+        Your browser does not support the video tag.
+    </video>
+	
+    <!-- Ending Video -->
+    <video id="cutscene-video" muted playsinline class="hidden">
+        <source src="video/woman.mp4" type="video/mp4">
+        <source src="video/woman.av1" type='video/mp4; codecs="av01.0.05M.08"'>
+        Your browser does not support the video tag.
+    </video>
+	
+    <div id="overlay"></div>
+    <div id="next-piece"></div>
+    <div id="score">Score: 0</div>
+    <div id="opponent-hp">Opponent HP: 100</div>
+    <div id="time-remaining">Time: 120</div>
+    
+	<div id="story-text" style="position: absolute; bottom: 10%; width: 100%; text-align: center; color: #fff; font-size: 24px;">
+		<div id="story-text-background">
+			<!-- Text will be inserted here -->
+		</div>
+	</div>
+	
+	<!-- Loading Screen -->
+	<div id="loading-screen">
+		<div id="loading-content">
+			<p style="font-size: 24px;">Please wait for the game to load resources</p>
+			<div id="loading-bar-container">
+				<div id="loading-bar"></div>
+			</div>
+		</div>
+	</div>
+	
+    <!-- Main JavaScript code -->
+    <script type="module" src="game.js"></script>
+</body>
+</html>
