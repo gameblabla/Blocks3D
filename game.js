@@ -3,7 +3,7 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 
-const supportsXR = 1;
+const supportsXR = 'xr' in window.navigator;
 
 // Initialize variables
 let scene, camera, renderer;
@@ -246,8 +246,7 @@ function init() {
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
-    
-    document.body.appendChild( getFullscreenButton( renderer ) );
+
     
     if (supportsXR)
     {
@@ -278,6 +277,8 @@ function init() {
 	}
 	else
 	{
+		document.body.appendChild( getFullscreenButton( renderer ) );
+		
 		// Reference to the fullscreen button
 		const fullscreenButton = document.getElementById('fullscreen-button');
 
