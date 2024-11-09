@@ -4,7 +4,7 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
-const supportsXR = 'xr' in window.navigator;
+const supportsXR = 0; // Disabled because its buggy
 
 
 // Ensure that you have the necessary event listeners and variables in place
@@ -765,11 +765,13 @@ function setupTitleScreenKeyListener() {
         // Only respond to key presses if in title state
         if (gameState === 'title') {
             document.removeEventListener('keydown', onStartKey);
+            document.removeEventListener('mousedown', onStartKey);
             pressStart.style.visibility = 'visible'; // Ensure it's visible
             showMainMenu();
         }
     }
     document.addEventListener('keydown', onStartKey);
+    document.addEventListener('mousedown', onStartKey);
     
     // For VR controllers
     if (isVRMode) {
