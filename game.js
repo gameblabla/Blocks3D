@@ -249,6 +249,29 @@ function init() {
     if (supportsXR)
     {
 		renderer.xr.enabled = true;
+		
+		// Create VR controllers
+		const controllerModelFactory = new XRControllerModelFactory();
+
+		// Left controller for movement
+		const leftController = renderer.xr.getController(0);
+		leftController.addEventListener('connected', (event) => setupController(event, 'left'));
+		leftController.addEventListener('disconnected', () => clearController('left'));
+		scene.add(leftController);
+
+		const leftControllerGrip = renderer.xr.getControllerGrip(0);
+		leftControllerGrip.add(controllerModelFactory.createControllerModel(leftControllerGrip));
+		scene.add(leftControllerGrip);
+
+		// Right controller for rotation
+		const rightController = renderer.xr.getController(1);
+		rightController.addEventListener('connected', (event) => setupController(event, 'right'));
+		rightController.addEventListener('disconnected', () => clearController('right'));
+		scene.add(rightController);
+
+		const rightControllerGrip = renderer.xr.getControllerGrip(1);
+		rightControllerGrip.add(controllerModelFactory.createControllerModel(rightControllerGrip));
+		scene.add(rightControllerGrip);
 	}
 	else
 	{
@@ -281,6 +304,19 @@ function init() {
 	}
 }
 
+let leftController = null;
+let rightController = null;
+
+// Setup controller function
+function setupController(event, hand) {
+    if (hand === 'left') leftController = event.target;
+    if (hand === 'right') rightController = event.target;
+}
+
+function clearController(hand) {
+    if (hand === 'left') leftController = null;
+    if (hand === 'right') rightController = null;
+}
 
 function getFullscreenButton(renderer) {
     var button = document.createElement('button');
@@ -1624,15 +1660,35 @@ function animate() {
         applySmoothRotation();
         applyScreenShake();
         updateLabels();
-        renderer.render(scene, camera);
 
         if (gameMode === 'story') {
             updateTime();
             checkOpponentHP();
         }
-    } else {
-        renderer.render(scene, camera);
+    } 
+    
+    if (leftController) {
+        // Analog stick on the left controller for movement
+        const axes = leftController.inputSource.gamepad.axes;
+        const moveX = axes[2]; // Horizontal axis
+        const moveY = axes[3]; // Vertical axis
+
+        currentPiece.position.x += moveX * blockSize * 0.1;
+        currentPiece.position.z += moveY * blockSize * 0.1;
     }
+
+    if (rightController) {
+        // Analog stick on the right controller for rotation
+        const axes = rightController.inputSource.gamepad.axes;
+        const rotateX = axes[2]; // Horizontal axis
+        const rotateY = axes[3]; // Vertical axis
+
+        currentPiece.rotation.y += rotateX * 0.05; // Adjust for rotation speed
+        currentPiece.rotation.x += rotateY * 0.05;
+    }
+    
+    renderer.render(scene, camera);
+
 }
 
 function updatePiece() {
