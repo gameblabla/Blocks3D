@@ -1,10 +1,9 @@
 import * as THREE from 'three';
-import {
-    FontLoader
-} from 'three/addons/loaders/FontLoader.js';
-import {
-    TextGeometry
-} from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+const supportsXR = 'xr' in window.navigator;
 
 // Initialize variables
 let scene, camera, renderer;
@@ -188,7 +187,9 @@ let introMusic; // Intro music
 let allResourcesLoadedCalled = false;
 
 init();
-animate();
+//animate();
+renderer.setAnimationLoop(animate);
+
 
 function init() {
     // Show the loading screen
@@ -215,6 +216,12 @@ function init() {
     addEventListeners();
 
     loadKeyBindings();
+    
+    // Create VR button only if WebXR Is poss
+    if (supportsXR)
+	{
+		document.body.appendChild( VRButton.createButton( renderer ) );
+	}
 
     // Set up the scene
     scene = new THREE.Scene();
@@ -236,7 +243,82 @@ function init() {
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
+    
+    document.body.appendChild( getFullscreenButton( renderer ) );
+    
+    if (supportsXR)
+    {
+		renderer.xr.enabled = true;
+	}
+	else
+	{
+		// Reference to the fullscreen button
+		const fullscreenButton = document.getElementById('fullscreen-button');
+
+		// Function to hide the fullscreen button with transition
+		function hideFullscreenButton() {
+			fullscreenButton.classList.add('hidden');
+			fullscreenButton.classList.remove('visible');
+		}
+
+		// Function to show the fullscreen button with transition
+		function showFullscreenButton() {
+			fullscreenButton.classList.add('visible');
+			fullscreenButton.classList.remove('hidden');
+		}
+
+		// Initialize the button as visible
+		fullscreenButton.classList.add('visible');
+
+		// Listen for fullscreen change events
+		document.addEventListener('fullscreenchange', () => {
+			if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+				hideFullscreenButton();
+			} else {
+				showFullscreenButton();
+			}
+		});
+	}
 }
+
+
+function getFullscreenButton(renderer) {
+    var button = document.createElement('button');
+    button.id = 'fullscreen-button'; // Assign an ID for easy reference
+    button.style.position = 'absolute';
+    button.style.right = '20px';
+    button.style.bottom = '20px';
+    button.style.width = '100px';
+    button.style.border = '0';
+    button.style.padding = '8px';
+    button.style.cursor = 'pointer';
+    button.style.backgroundColor = '#000';
+    button.style.color = '#fff';
+    button.style.fontFamily = 'sans-serif';
+    button.style.fontSize = '13px';
+    button.style.fontStyle = 'normal';
+    button.style.textAlign = 'center';
+    button.style.zIndex = '999';
+    button.textContent = 'FULLSCREEN';
+    
+    button.onclick = function() {
+        let fullscreenElement = document.getElementById('main-container');
+        if (!document.fullscreenElement) {
+            if (fullscreenElement.requestFullscreen) {
+                fullscreenElement.requestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
+    return button;
+}
+
+
+
 
 function loadKeyBindings() {
     let storedBindings = localStorage.getItem('keyBindings');
@@ -1516,8 +1598,6 @@ function detectShadowCollision() {
 }
 
 function animate() {
-    requestAnimationFrame(animate);
-
 
     // Update background
     if (backgroundGeometry) {
@@ -1986,7 +2066,7 @@ function onDocumentKeyDown(event) {
             playSFX('move');
             break;
         case 'Fast Drop':
-            isFastDropping = true;
+            isFastDropping ^= 1;
             break;
         case 'Rotate Y Negative':
             handleRotation({
