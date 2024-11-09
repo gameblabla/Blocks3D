@@ -2,8 +2,15 @@ import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
 const supportsXR = 'xr' in window.navigator;
+
+
+// Ensure that you have the necessary event listeners and variables in place
+let controllerMoveCooldown = 0;
+let controllerRotateCooldown = 0;
+
 
 // Initialize variables
 let scene, camera, renderer;
@@ -189,6 +196,16 @@ let voiceOver; // Voice overs
 let introMusic; // Intro music
 let allResourcesLoadedCalled = false;
 
+// Add these global variables
+let isVRMode = false;
+let interactiveObjects = []; // For menu interactions
+let tempMatrix = new THREE.Matrix4();
+
+
+let leftController = null;
+let rightController = null;
+
+
 init();
 //animate();
 renderer.setAnimationLoop(animate);
@@ -250,30 +267,38 @@ function init() {
     
     if (supportsXR)
     {
-		renderer.xr.enabled = true;
-		
-		// Create VR controllers
-		const controllerModelFactory = new XRControllerModelFactory();
+        renderer.xr.enabled = true;
 
-		// Left controller for movement
-		const leftController = renderer.xr.getController(0);
-		leftController.addEventListener('connected', (event) => setupController(event, 'left'));
-		leftController.addEventListener('disconnected', () => clearController('left'));
-		scene.add(leftController);
+        // Event listeners to track VR mode
+        renderer.xr.addEventListener('sessionstart', () => { isVRMode = true; });
+        renderer.xr.addEventListener('sessionend', () => { isVRMode = false; });
 
-		const leftControllerGrip = renderer.xr.getControllerGrip(0);
-		leftControllerGrip.add(controllerModelFactory.createControllerModel(leftControllerGrip));
-		scene.add(leftControllerGrip);
+        // Create VR controllers
+        const controllerModelFactory = new XRControllerModelFactory();
 
-		// Right controller for rotation
-		const rightController = renderer.xr.getController(1);
-		rightController.addEventListener('connected', (event) => setupController(event, 'right'));
-		rightController.addEventListener('disconnected', () => clearController('right'));
-		scene.add(rightController);
+        // Left controller for movement
+        leftController = renderer.xr.getController(0);
+        leftController.addEventListener('connected', (event) => setupController(event, 'left'));
+        leftController.addEventListener('disconnected', () => clearController('left'));
+        leftController.addEventListener('selectstart', onSelectStart);
+        leftController.addEventListener('selectend', onSelectEnd);
+        scene.add(leftController);
 
-		const rightControllerGrip = renderer.xr.getControllerGrip(1);
-		rightControllerGrip.add(controllerModelFactory.createControllerModel(rightControllerGrip));
-		scene.add(rightControllerGrip);
+        const leftControllerGrip = renderer.xr.getControllerGrip(0);
+        leftControllerGrip.add(controllerModelFactory.createControllerModel(leftControllerGrip));
+        scene.add(leftControllerGrip);
+
+        // Right controller for rotation
+        rightController = renderer.xr.getController(1);
+        rightController.addEventListener('connected', (event) => setupController(event, 'right'));
+        rightController.addEventListener('disconnected', () => clearController('right'));
+        rightController.addEventListener('selectstart', onSelectStart);
+        rightController.addEventListener('selectend', onSelectEnd);
+        scene.add(rightController);
+
+        const rightControllerGrip = renderer.xr.getControllerGrip(1);
+        rightControllerGrip.add(controllerModelFactory.createControllerModel(rightControllerGrip));
+        scene.add(rightControllerGrip);
 	}
 	else
 	{
@@ -306,15 +331,18 @@ function init() {
 			}
 		});
 	}
-}
 
-let leftController = null;
-let rightController = null;
+
+	
+}
 
 // Setup controller function
 function setupController(event, hand) {
-    if (hand === 'left') leftController = event.target;
-    if (hand === 'right') rightController = event.target;
+    const controller = event.target;
+    controller.userData.inputSource = event.data; // Store the inputSource
+    controller.userData.gamepad = event.data.gamepad; // Store the gamepad
+    if (hand === 'left') leftController = controller;
+    if (hand === 'right') rightController = controller;
 }
 
 function clearController(hand) {
@@ -504,6 +532,8 @@ function countTotalResources() {
         if (segment.character1) totalResources += 1;
         if (segment.character2) totalResources += 1;
     });
+    
+    totalResources += 6;
 
 
     console.log(`Total Resources to Load: ${totalResources}`);
@@ -740,6 +770,39 @@ function setupTitleScreenKeyListener() {
         }
     }
     document.addEventListener('keydown', onStartKey);
+    
+    // For VR controllers
+    if (isVRMode) {
+        leftController.addEventListener('selectstart', onTitleScreenSelect);
+        rightController.addEventListener('selectstart', onTitleScreenSelect);
+    }
+    
+}
+
+function onTitleScreenSelect(event) {
+    if (gameState === 'title') {
+        leftController.removeEventListener('selectstart', onTitleScreenSelect);
+        rightController.removeEventListener('selectstart', onTitleScreenSelect);
+        showMainMenu();
+    }
+}
+
+
+// Modify the onSelectStart() and onSelectEnd() functions
+function onSelectStart(event) {
+    const controller = event.target;
+    if (controller.userData.selected) {
+        const selectedObject = controller.userData.selected;
+        if (gameState === 'menu') {
+            handleMenuSelection(selectedObject);
+        } else if (gameState === 'title') {
+            showMainMenu();
+        }
+    }
+}
+
+function onSelectEnd(event) {
+    // You can add visual feedback here if needed
 }
 
 function playBGM(type, trackName) {
@@ -846,28 +909,80 @@ function showMainMenu() {
     // Play menu music
     playBGM('menu');
 
-    // Overlay menu options
-    let overlay = document.getElementById('overlay');
-    overlay.innerHTML = '<h1>Main Menu</h1><ul id="menu-options"></ul>';
-    overlay.classList.remove('hidden');
 
-    let menuOptionsList = document.getElementById('menu-options');
-    menuOptionsList.style.listStyleType = 'none';
-    menuOptionsList.style.padding = 0;
+    if (isVRMode) {
+        // Create 3D menu options for VR
+        create3DMenuOptions();
+    } else {
+		// Overlay menu options
+		let overlay = document.getElementById('overlay');
+		overlay.innerHTML = '<h1>Main Menu</h1><ul id="menu-options"></ul>';
+		overlay.classList.remove('hidden');
+
+		let menuOptionsList = document.getElementById('menu-options');
+		menuOptionsList.style.listStyleType = 'none';
+		menuOptionsList.style.padding = 0;
+
+		for (let i = 0; i < menuOptions.length; i++) {
+			let option = document.createElement('li');
+			option.innerText = menuOptions[i];
+			option.style.fontSize = '32px';
+			option.style.margin = '10px 0';
+			option.style.cursor = 'pointer';
+			if (i === selectedOption) {
+				option.style.color = '#FFD700'; // Highlight selected option
+			}
+			menuOptionsList.appendChild(option);
+		}
+
+		updateMenuSelection();
+	}
+}
+
+// Define the create3DMenuOptions() function
+function create3DMenuOptions() {
+    interactiveObjects = []; // Clear previous interactive objects
+    const menuGroup = new THREE.Group();
+    const optionHeight = 1;
+    const optionSpacing = 1.5;
+    const startY = (menuOptions.length - 1) * optionSpacing / 2;
 
     for (let i = 0; i < menuOptions.length; i++) {
-        let option = document.createElement('li');
-        option.innerText = menuOptions[i];
-        option.style.fontSize = '32px';
-        option.style.margin = '10px 0';
-        option.style.cursor = 'pointer';
-        if (i === selectedOption) {
-            option.style.color = '#FFD700'; // Highlight selected option
-        }
-        menuOptionsList.appendChild(option);
+        const optionText = menuOptions[i];
+
+        const textGeometry = new TextGeometry(optionText, {
+            font: font,
+            size: 0.5,
+            height: 0.1,
+        });
+
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        textMesh.position.x = -1.5;
+        textMesh.position.y = startY - i * optionSpacing;
+        textMesh.position.z = -5;
+
+        textMesh.userData.menuOption = i; // Store the index
+        menuGroup.add(textMesh);
+        interactiveObjects.push(textMesh); // Add to interactive objects
     }
 
-    updateMenuSelection();
+    scene.add(menuGroup);
+}
+
+// Update the handleMenuSelection() function
+function handleMenuSelection(selectedObject) {
+    if (selectedObject.userData.menuOption !== undefined) {
+        const selectedIndex = selectedObject.userData.menuOption;
+        if (selectedIndex === 0) {
+            startStoryMode();
+        } else if (selectedIndex === 1) {
+            startArcadeMode();
+        } else if (selectedIndex === 2) {
+            showKeyConfigMenu();
+        }
+    }
 }
 
 
@@ -1668,6 +1783,11 @@ function animate() {
             updateTime();
             checkOpponentHP();
         }
+        
+        // Handle VR controller input
+        if (isVRMode) {
+            handleVRControllers();
+        }
     } 
     
     if (leftController) {
@@ -1693,6 +1813,131 @@ function animate() {
     renderer.render(scene, camera);
 
 }
+
+function handleVRControllers() {
+    const joystickDeadzone = 0.2;
+    const controllerMoveDelay = 20;
+    const controllerRotateDelay = 20;
+    if (controllerMoveCooldown > 0) controllerMoveCooldown--;
+    if (controllerRotateCooldown > 0) controllerRotateCooldown--;
+
+    // Left controller for movement
+    if (leftController && gameState === 'game' && controllerMoveCooldown === 0) {
+        const gamepad = leftController.userData.gamepad;
+        if (gamepad && gamepad.axes.length >= 4) {
+            const moveX = gamepad.axes[2];
+            const moveY = gamepad.axes[3];
+
+            if (moveX > joystickDeadzone) {
+                // Move right
+                handleMovement('Right');
+                controllerMoveCooldown = controllerMoveDelay;
+            } else if (moveX < -joystickDeadzone) {
+                // Move left
+                handleMovement('Left');
+                controllerMoveCooldown = controllerMoveDelay;
+            }
+
+            if (moveY > joystickDeadzone) {
+                // Move backward
+                handleMovement('Backward');
+                controllerMoveCooldown = controllerMoveDelay;
+            } else if (moveY < -joystickDeadzone) {
+                // Move forward
+                handleMovement('Forward');
+                controllerMoveCooldown = controllerMoveDelay;
+            }
+        }
+
+        // Handle fast drop using a button
+        if (gamepad && gamepad.buttons[0].pressed) {
+            isFastDropping = true;
+        } else {
+            isFastDropping = false;
+        }
+    }
+
+    // Right controller for rotation
+    if (rightController && gameState === 'game' && controllerRotateCooldown === 0) {
+        const gamepad = rightController.userData.gamepad;
+        if (gamepad && gamepad.axes.length >= 4) {
+            const rotateX = gamepad.axes[2];
+            const rotateY = gamepad.axes[3];
+
+            if (rotateX > joystickDeadzone) {
+                // Rotate Y positive
+                handleRotation({ x: 0, y: Math.PI / 2, z: 0 });
+                controllerRotateCooldown = controllerRotateDelay;
+            } else if (rotateX < -joystickDeadzone) {
+                // Rotate Y negative
+                handleRotation({ x: 0, y: -Math.PI / 2, z: 0 });
+                controllerRotateCooldown = controllerRotateDelay;
+            }
+
+            if (rotateY > joystickDeadzone) {
+                // Rotate X positive
+                handleRotation({ x: Math.PI / 2, y: 0, z: 0 });
+                controllerRotateCooldown = controllerRotateDelay;
+            } else if (rotateY < -joystickDeadzone) {
+                // Rotate X negative
+                handleRotation({ x: -Math.PI / 2, y: 0, z: 0 });
+                controllerRotateCooldown = controllerRotateDelay;
+            }
+        }
+    }
+
+    // Raycasting for menu interactions
+    [leftController, rightController].forEach((controller) => {
+        if (controller && controller.userData.inputSource) {
+            tempMatrix.identity().extractRotation(controller.matrixWorld);
+            raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+            const intersects = raycaster.intersectObjects(interactiveObjects);
+            if (intersects.length > 0) {
+                const intersected = intersects[0].object;
+                controller.userData.selected = intersected;
+            } else {
+                controller.userData.selected = undefined;
+            }
+        }
+    });
+}
+// Update the handleMovement() function
+function handleMovement(action) {
+    let deltaPosition = new THREE.Vector3();
+
+    switch (action) {
+        case 'Left':
+            deltaPosition.x = -blockSize;
+            playSFX('move');
+            break;
+        case 'Right':
+            deltaPosition.x = blockSize;
+            playSFX('move');
+            break;
+        case 'Forward':
+            deltaPosition.z = -blockSize;
+            playSFX('move');
+            break;
+        case 'Backward':
+            deltaPosition.z = blockSize;
+            playSFX('move');
+            break;
+    }
+
+    currentPiece.position.add(deltaPosition);
+
+    // Check collision after movement
+    if (checkMovementCollision()) {
+        // Revert movement if collision detected
+        currentPiece.position.sub(deltaPosition);
+    } else {
+        updateShadowPiece();
+    }
+}
+
+
 
 function updatePiece() {
     if (!currentPiece) return; // Exit if currentPiece is null
@@ -2307,6 +2552,8 @@ function applySmoothRotation() {
 }
 
 function applyScreenShake() {
+	if (isVRMode) return;
+	
     if (shakeDuration > 0) {
         let shakeX = (Math.random() - 0.5) * shakeIntensity;
         let shakeY = (Math.random() - 0.5) * shakeIntensity;
@@ -2323,12 +2570,16 @@ function applyScreenShake() {
 
 // Mouse control functions
 function onDocumentMouseDown(event) {
+	if (isVRMode) return;
+	
     isMouseDown = true;
     prevMouse.x = event.clientX;
     prevMouse.y = event.clientY;
 }
 
 function onDocumentMouseMove(event) {
+	if (isVRMode) return;
+	
     if (isMouseDown) {
         let deltaX = event.clientX - prevMouse.x;
         let deltaY = event.clientY - prevMouse.y;
@@ -2348,10 +2599,14 @@ function onDocumentMouseMove(event) {
 }
 
 function onDocumentMouseUp(event) {
+	if (isVRMode) return;
+	
     isMouseDown = false;
 }
 
 function updateCameraPosition() {
+	 if (isVRMode) return; // Do not update camera position in VR mode
+	
     let centerX = (wellSize.x * blockSize) / 2 - blockSize / 2;
     let centerY = (wellSize.y * blockSize) / 2 - blockSize / 2;
     let centerZ = (wellSize.z * blockSize) / 2 - blockSize / 2;
