@@ -3,7 +3,7 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 
-const supportsXR = 'xr' in window.navigator;
+const supportsXR = 1;
 
 // Initialize variables
 let scene, camera, renderer;
@@ -27,6 +27,9 @@ let isRotating = false; // New variable to track rotation state
 let rotationCooldown = 0;
 let piecesPlaced = 0; // Counter for pieces placed
 let highScore = 0;
+
+
+let introMusicPlayed = false;
 
 let totalResources = 0;
 let resourcesLoaded = 0;
@@ -665,7 +668,6 @@ function initAudio() {
     });
 }
 
-let introMusicPlayed = false;
 
 function playIntro() {
     console.log('playIntro() called');
