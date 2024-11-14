@@ -454,12 +454,23 @@ function onCameraTouchEnd(event) {
     event.stopPropagation();
 }
 
-// Action Buttons Event Handlers
+let lastActionTime = 0;
+const actionCooldown = 60; // 60ms cooldown
+
+function handleActionWithThrottle(action, callback) {
+    const currentTime = Date.now();
+    if (currentTime - lastActionTime > actionCooldown) {
+        callback();
+        lastActionTime = currentTime;
+    }
+}
+
+// Usage within touch event handlers
 function onActionButtonPress(event) {
     event.preventDefault();
     event.stopPropagation();
     const action = event.target.getAttribute('data-action');
-    handleTouchAction(action, true);
+    handleActionWithThrottle(action, () => handleTouchAction(action, true));
 }
 
 function onActionButtonRelease(event) {

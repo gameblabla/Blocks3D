@@ -275,17 +275,6 @@
 		top: 45px;
 	}
 
-	#action-buttons {
-		position: absolute;
-		bottom: 20px;
-		right: 20px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		pointer-events: auto;
-		z-index: 30;
-	}
-
 	#rotate-buttons {
 		display: flex;
 		flex-wrap: wrap;
@@ -335,13 +324,13 @@
 	/* Camera Control Area Styling */
 	#camera-controls {
 		position: absolute;
-		top: 0%;
-		left: 0%;
+		top: 0;
+		left: 0;
 		width: 100%;
 		height: 100%;
 		/* Optional: Visual Indicator (Remove if not needed) */
 		/* background: rgba(255, 255, 255, 0.1); */
-		pointer-events: auto; /* Enable touch interactions */
+		pointer-events: auto;
 		z-index: 15; /* Ensure it's above other touch controls */
 	}
 
@@ -378,8 +367,21 @@
 		grid-template-rows: repeat(3, 50px);
 		gap: 5px;
 		pointer-events: auto; /* Enable touch interactions */
-		z-index : 30;
+		z-index: 30; /* Higher z-index to appear above Camera Controls */
 	}
+
+	/* Action Buttons Styling (Bottom Right) */
+	#action-buttons {
+		position: absolute;
+		bottom: 20px;
+		right: 20px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		pointer-events: auto;
+		z-index: 30; /* Higher z-index to appear above Camera Controls */
+	}
+
 
 	#dpad .dpad-button {
 		width: 50px;
@@ -421,6 +423,14 @@
 		background: rgba(150, 150, 150, 0.7);
 	}
 	
+	/* Button Press Effect */
+	.rotate-button:active,
+	#fast-drop-button:active,
+	#drop-piece-button:active,
+	#cancel-button:active {
+		background: rgba(255, 0, 0, 0.7);
+		transform: scale(0.80); /* Slightly shrink the button to indicate press */
+	}
 		
     </style>
     <!-- Import map for module imports -->
@@ -463,10 +473,10 @@
 				<!-- Text will be inserted here -->
 			</div>
 		</div>
-		
+				
 		<!-- Touch Controls Overlay -->
 		<div id="touch-controls" class="hidden">
-			<!-- D-Pad -->
+			<!-- D-Pad (Left Side) -->
 			<div id="dpad">
 				<button class="dpad-button" data-direction="up">↑</button>
 				<button class="dpad-button" data-direction="left">←</button>
@@ -474,7 +484,7 @@
 				<button class="dpad-button" data-direction="right">→</button>
 			</div>
 
-			<!-- Action Buttons -->
+			<!-- Action Buttons (Bottom Right) -->
 			<div id="action-buttons">
 				<!-- Rotate Buttons -->
 				<div id="rotate-buttons">
@@ -490,11 +500,12 @@
 				<button id="drop-piece-button" data-action="Drop Piece">Drop Piece</button>
 			</div>
 
-			<!-- New Camera Control Area -->
+			<!-- Camera Control Area (Middle) -->
 			<div id="camera-controls" class="hidden">
 				<!-- This div will capture touch events for camera movement -->
 			</div>
 		</div>
+
 
 
 
