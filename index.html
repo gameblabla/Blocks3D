@@ -11,6 +11,7 @@
 			background-color: #000;
 			width: 100vw;
 			height: 100vh;
+			touch-action: manipulation;
 		}
 
 		canvas {
@@ -25,7 +26,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
-            pointer-events: none;
+            pointer-events: auto; 
             z-index: 10;
             display: flex;
             align-items: center;
@@ -234,12 +235,107 @@
 			opacity: 1;
 			visibility: visible;
 		}
+		
+		/* Touch Controls Styling */
+	#touch-controls {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none; /* Allow touches to pass through to children */
+		z-index: 10;
+	}
+
+	#left-analog-stick {
+		position: absolute;
+		bottom: 20px;
+		left: 20px;
+		width: 150px;
+		height: 150px;
+		pointer-events: auto;
+	}
+
+	#joystick-base {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		background: rgba(100, 100, 100, 0.5);
+		border-radius: 50%;
+	}
+
+	#joystick-thumb {
+		position: absolute;
+		width: 60px;
+		height: 60px;
+		background: rgba(200, 200, 200, 0.8);
+		border-radius: 50%;
+		left: 45px; /* Centered initially */
+		top: 45px;
+	}
+
+	#action-buttons {
+		position: absolute;
+		bottom: 20px;
+		right: 20px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		pointer-events: auto;
+	}
+
+	#rotate-buttons {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		margin-bottom: 10px;
+	}
+
+	.rotate-button {
+		width: 60px;
+		height: 40px;
+		margin: 5px;
+		font-size: 14px;
+		background: rgba(100, 100, 100, 0.5);
+		color: #fff;
+		border: none;
+		border-radius: 5px;
+		pointer-events: auto;
+	}
+
+	#fast-drop-button,
+	#drop-piece-button,
+	#cancel-button {
+		width: 100px;
+		height: 50px;
+		margin: 5px;
+		font-size: 16px;
+		background: rgba(100, 100, 100, 0.5);
+		color: #fff;
+		border: none;
+		border-radius: 5px;
+		pointer-events: auto;
+	}
+
+	/* Hide the touch controls initially */
+	#touch-controls.hidden {
+		display: none;
+	}
+	
+	#menu-options li {
+		font-size: 32px;
+		margin: 10px 0;
+		cursor: pointer;
+		text-align: center;
+		list-style-type: none;
+	}
+		
     </style>
     <!-- Import map for module imports -->
     <script type="importmap">
       {
         "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
           "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
           "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
         }
@@ -276,6 +372,32 @@
 			</div>
 		</div>
 		
+		<!-- Touch Controls Overlay -->
+		<div id="touch-controls" class="hidden">
+			<!-- Left Analog Stick -->
+			<div id="left-analog-stick">
+				<div id="joystick-base">
+					<div id="joystick-thumb"></div>
+				</div>
+			</div>
+
+			<!-- Action Buttons -->
+			<div id="action-buttons">
+				<!-- Rotate Buttons -->
+				<div id="rotate-buttons">
+					<button class="rotate-button" data-action="Rotate X Positive">X+</button>
+					<button class="rotate-button" data-action="Rotate X Negative">X-</button>
+					<button class="rotate-button" data-action="Rotate Y Positive">Y+</button>
+					<button class="rotate-button" data-action="Rotate Y Negative">Y-</button>
+					<button class="rotate-button" data-action="Rotate Z Positive">Z+</button>
+					<button class="rotate-button" data-action="Rotate Z Negative">Z-</button>
+				</div>
+				<!-- Other Buttons -->
+				<button id="fast-drop-button" data-action="Fast Drop">Fast Drop</button>
+				<button id="drop-piece-button" data-action="Drop Piece">Drop Piece</button>
+			</div>
+		</div>
+
 
 		<!-- Loading Screen -->
 		<div id="loading-screen">
@@ -286,6 +408,7 @@
 				<div id="loading-bar-container">
 					<div id="loading-bar"></div>
 				</div>
+				<!-- The new message will be appended here -->
 			</div>
 		</div>
 		

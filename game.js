@@ -205,13 +205,39 @@ let tempMatrix = new THREE.Matrix4();
 let leftController = null;
 let rightController = null;
 
+// Touch Controls Variables
+let touchControlsVisible = false;
+let joystick = {
+    base: null,
+    thumb: null,
+    centerX: 0,
+    centerY: 0,
+    maxDistance: 60,
+    onMove: function(dx, dy) {},
+};
+
+function isMobileDevice() {
+    return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    //return 1;
+}
+
+let isMobile = isMobileDevice(); // Add this at the top of your script or inside init()
+
 
 init();
 //animate();
 renderer.setAnimationLoop(animate);
 
-
 function init() {
+	
+    // Check if the device is mobile
+    isMobile = isMobileDevice();
+
+    // Initialize touch controls if on mobile
+    if (isMobile) {
+        initTouchControls();
+    }
+	
     // Show the loading screen
     document.getElementById('loading-screen').style.display = 'flex';
 
@@ -258,7 +284,7 @@ function init() {
     updateCameraPosition();
 
     // Set up the renderer
-    renderer = new THREE.WebGLRenderer({
+    renderer = new THREE.WebGPURenderer({
         antialias: true
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -335,6 +361,173 @@ function init() {
 
 	
 }
+
+
+/* Touchscreen controls */
+
+
+function initTouchControls() {
+    const touchControls = document.getElementById('touch-controls');
+    joystick.base = document.getElementById('joystick-base');
+    joystick.thumb = document.getElementById('joystick-thumb');
+
+    // Joystick event listeners
+    joystick.base.addEventListener('touchstart', onJoystickStart, false);
+    joystick.base.addEventListener('touchmove', onJoystickMove, false);
+    joystick.base.addEventListener('touchend', onJoystickEnd, false);
+
+    // Action buttons event listeners
+    const rotateButtons = document.getElementsByClassName('rotate-button');
+    for (let button of rotateButtons) {
+        button.addEventListener('touchstart', onActionButtonPress, false);
+        button.addEventListener('touchend', onActionButtonRelease, false);
+    }
+
+    const fastDropButton = document.getElementById('fast-drop-button');
+    fastDropButton.addEventListener('touchstart', onActionButtonPress, false);
+    fastDropButton.addEventListener('touchend', onActionButtonRelease, false);
+
+    const dropPieceButton = document.getElementById('drop-piece-button');
+    dropPieceButton.addEventListener('touchstart', onActionButtonPress, false);
+    dropPieceButton.addEventListener('touchend', onActionButtonRelease, false);
+}
+
+function onJoystickStart(event) {
+    const touch = event.targetTouches[0];
+    const rect = joystick.base.getBoundingClientRect();
+    joystick.centerX = rect.left + rect.width / 2;
+    joystick.centerY = rect.top + rect.height / 2;
+    joystick.thumb.style.transition = '0s';
+}
+
+function onJoystickMove(event) {
+    event.preventDefault(); // Prevent scrolling
+    const touch = event.targetTouches[0];
+    const dx = touch.clientX - joystick.centerX;
+    const dy = touch.clientY - joystick.centerY;
+    const distance = Math.min(joystick.maxDistance, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx);
+
+    const x = distance * Math.cos(angle);
+    const y = distance * Math.sin(angle);
+
+    joystick.thumb.style.transform = `translate(${x}px, ${y}px)`;
+
+    // Normalize the movement
+    const normalizedX = x / joystick.maxDistance;
+    const normalizedY = y / joystick.maxDistance;
+
+    joystick.onMove(normalizedX, normalizedY);
+}
+
+function onJoystickEnd(event) {
+    joystick.thumb.style.transition = '0.2s';
+    joystick.thumb.style.transform = 'translate(0px, 0px)';
+    joystick.onMove(0, 0);
+}
+
+function onActionButtonPress(event) {
+	event.preventDefault();
+    const action = event.target.getAttribute('data-action');
+    handleTouchAction(action, true);
+}
+
+function onActionButtonRelease(event) {
+	event.preventDefault();
+    const action = event.target.getAttribute('data-action');
+    handleTouchAction(action, false);
+}
+
+function handleTouchAction(action, isPressed) {
+    if (isPressed) {
+        if (action === 'Fast Drop') {
+            isFastDropping = true;
+        } else if (action === 'Drop Piece') {
+            dropPieceToBottom();
+        } else {
+            // Rotation actions
+            let rotation = { x: 0, y: 0, z: 0 };
+            switch (action) {
+                case 'Rotate X Positive':
+                    rotation.x = Math.PI / 2;
+                    break;
+                case 'Rotate X Negative':
+                    rotation.x = -Math.PI / 2;
+                    break;
+                case 'Rotate Y Positive':
+                    rotation.y = Math.PI / 2;
+                    break;
+                case 'Rotate Y Negative':
+                    rotation.y = -Math.PI / 2;
+                    break;
+                case 'Rotate Z Positive':
+                    rotation.z = Math.PI / 2;
+                    break;
+                case 'Rotate Z Negative':
+                    rotation.z = -Math.PI / 2;
+                    break;
+            }
+            handleRotation(rotation);
+        }
+    } else {
+        if (action === 'Fast Drop') {
+            isFastDropping = false;
+        }
+    }
+}
+
+function handleJoystickMovement() {
+    if (!currentPiece) return;
+
+    let deltaPosition = new THREE.Vector3();
+
+    const threshold = 0.3; // Deadzone threshold
+    const moveX = joystick.normalizedX || 0;
+    const moveY = joystick.normalizedY || 0;
+
+    if (moveX > threshold) {
+        deltaPosition.x = blockSize;
+    } else if (moveX < -threshold) {
+        deltaPosition.x = -blockSize;
+    }
+
+    if (moveY > threshold) {
+        deltaPosition.z = blockSize;
+    } else if (moveY < -threshold) {
+        deltaPosition.z = -blockSize;
+    }
+
+    // Apply movement if any
+    if (deltaPosition.lengthSq() > 0) {
+        currentPiece.position.add(deltaPosition);
+
+        // Check collision after movement
+        if (checkMovementCollision()) {
+            // Revert movement if collision detected
+            currentPiece.position.sub(deltaPosition);
+        } else {
+            updateShadowPiece();
+        }
+    }
+}
+
+function showTouchControls() {
+    if (!isMobile) return; // Only show on mobile devices
+    const touchControls = document.getElementById('touch-controls');
+    touchControls.classList.remove('hidden');
+    touchControlsVisible = true;
+}
+
+function hideTouchControls() {
+    const touchControls = document.getElementById('touch-controls');
+    touchControls.classList.add('hidden');
+    touchControlsVisible = false;
+}
+
+
+/* End Virtual touchscreen */
+
+
 
 // Setup controller function
 function setupController(event, hand) {
@@ -481,9 +674,17 @@ function resourceLoaded() {
     if (resourcesLoaded >= totalResources && !allResourcesLoadedCalled) {
         allResourcesLoadedCalled = true;
         console.log('All resources loaded. Calling onAllResourcesLoaded()');
+
+        // Hide the loading bar
+        let loadingBarContainer = document.getElementById('loading-bar-container');
+        if (loadingBarContainer) {
+            loadingBarContainer.style.display = 'none';
+        }
+
         onAllResourcesLoaded();
     }
 }
+
 
 function updateLoadingBar() {
     let percentage = Math.round((resourcesLoaded / totalResources) * 100);
@@ -493,12 +694,31 @@ function updateLoadingBar() {
 
 
 function onAllResourcesLoaded() {
-    // Hide the loading screen
-    document.getElementById('loading-screen').style.display = 'none';
+    // Update the loading screen to prompt for user interaction
+    let loadingContent = document.getElementById('loading-content');
+    loadingContent.innerHTML += `
+        <p style="font-size: 24px;">Click, tap, or press any key to continue</p>
+    `;
 
-    // Proceed to play the intro
-    playIntro();
+    // Add event listeners for user interaction
+    function onUserInteraction() {
+        // Remove the event listeners to prevent multiple triggers
+        document.removeEventListener('keydown', onUserInteraction);
+        document.removeEventListener('mousedown', onUserInteraction);
+        document.removeEventListener('touchstart', onUserInteraction);
+
+        // Hide the loading screen
+        document.getElementById('loading-screen').style.display = 'none';
+
+        // Proceed to play the intro
+        playIntro();
+    }
+
+    document.addEventListener('keydown', onUserInteraction);
+    document.addEventListener('mousedown', onUserInteraction);
+    document.addEventListener('touchstart', onUserInteraction);
 }
+
 
 
 function countTotalResources() {
@@ -899,6 +1119,16 @@ function showTitleScreen() {
         showMainMenu();
     }
     document.addEventListener('keydown', onStartKey);
+    
+    // Make the whole screen act as confirm
+    overlay.addEventListener('touchstart', onStartTouch);
+}
+
+function onStartTouch(event) {
+    if (gameState === 'title') {
+        overlay.removeEventListener('touchstart', onStartTouch);
+        showMainMenu();
+    }
 }
 
 function showMainMenu() {
@@ -911,35 +1141,59 @@ function showMainMenu() {
     // Play menu music
     playBGM('menu');
 
+    // Overlay menu options
+    let overlay = document.getElementById('overlay');
+    overlay.innerHTML = '<h1>Main Menu</h1><ul id="menu-options"></ul>';
+    overlay.classList.remove('hidden');
 
-    if (isVRMode) {
-        // Create 3D menu options for VR
-        create3DMenuOptions();
-    } else {
-		// Overlay menu options
-		let overlay = document.getElementById('overlay');
-		overlay.innerHTML = '<h1>Main Menu</h1><ul id="menu-options"></ul>';
-		overlay.classList.remove('hidden');
+    let menuOptionsList = document.getElementById('menu-options');
+    menuOptionsList.style.listStyleType = 'none';
+    menuOptionsList.style.padding = 0;
 
-		let menuOptionsList = document.getElementById('menu-options');
-		menuOptionsList.style.listStyleType = 'none';
-		menuOptionsList.style.padding = 0;
+    for (let i = 0; i < menuOptions.length; i++) {
+        let option = document.createElement('li');
+        option.innerText = menuOptions[i];
+        option.style.fontSize = '32px';
+        option.style.margin = '10px 0';
+        option.style.cursor = 'pointer';
+        option.style.textAlign = 'center'; // Center align text
+        option.dataset.index = i; // Store the index
 
-		for (let i = 0; i < menuOptions.length; i++) {
-			let option = document.createElement('li');
-			option.innerText = menuOptions[i];
-			option.style.fontSize = '32px';
-			option.style.margin = '10px 0';
-			option.style.cursor = 'pointer';
-			if (i === selectedOption) {
-				option.style.color = '#FFD700'; // Highlight selected option
-			}
-			menuOptionsList.appendChild(option);
-		}
+        if (i === selectedOption) {
+            option.style.color = '#FFD700'; // Highlight selected option
+        } else {
+            option.style.color = '#FFFFFF';
+        }
 
-		updateMenuSelection();
-	}
+        // Attach event listeners for mouse and touch events
+        option.addEventListener('click', onMenuOptionSelect);
+        option.addEventListener('touchstart', onMenuOptionSelect);
+
+        menuOptionsList.appendChild(option);
+    }
 }
+
+function onMenuOptionSelect(event) {
+    event.preventDefault(); // Prevent default behavior, especially for touch events
+
+    // Get the selected option index from the dataset
+    const index = parseInt(event.currentTarget.dataset.index);
+
+    if (index >= 0 && index < menuOptions.length) {
+        selectedOption = index;
+        updateMenuSelection();
+
+        // Perform the action associated with the selected option
+        if (selectedOption === 0) {
+            startStoryMode();
+        } else if (selectedOption === 1) {
+            startArcadeMode();
+        } else if (selectedOption === 2) {
+            showKeyConfigMenu();
+        }
+    }
+}
+
 
 // Define the create3DMenuOptions() function
 function create3DMenuOptions() {
@@ -1075,6 +1329,8 @@ function showStorySegment() {
     } else {
         playBGM('story'); // Play default story music
     }
+    
+	hideTouchControls();
 
     // Hide or remove the story text background
     let storyTextBackground = document.getElementById('story-text-background');
@@ -1111,36 +1367,58 @@ function showStorySegment() {
         // After characters have finished appearing onscreen, start typing the first line
         typeNextLine();
     });
-
-    // Proceed to next line or gameplay on key press
-    function onStoryKey(event) {
-        if (event.keyCode === 13 || event.keyCode === 32) { // Enter or Space
-            if (isTyping) {
-                // Finish current line instantly
-                finishTypingCurrentLine();
+    
+    function onStoryEvent(event) {
+        if (event.type === 'keydown' && (event.keyCode !== 13 && event.keyCode !== 32)) {
+            return; // Only proceed on Enter or Space
+        }
+        if (isTyping) {
+            // Finish current line instantly
+            finishTypingCurrentLine();
+        } else {
+            currentLine++;
+            if (currentLine < segment.text.length) {
+                typeNextLine();
             } else {
-                currentLine++;
-                if (currentLine < segment.text.length) {
-                    typeNextLine();
-                } else {
-                    stopAllSFX();
-                    stopAllVoiceOver();
+                stopAllSFX();
+                stopAllVoiceOver();
 
-                    // All lines done, proceed
-                    document.removeEventListener('keydown', onStoryKey);
-                    overlay.classList.add('hidden');
-                    if (currentStorySegment === 2) { // After the third story segment
-                        playCutsceneVideo(() => {
-                            startStoryGameplay(); // Start the next game round after the cutscene
-                        });
-                    } else {
-                        startStoryGameplay(); // Start the next game round immediately
-                    }
+                // All lines done, proceed
+                document.removeEventListener('keydown', onStoryEvent);
+                document.removeEventListener('mousedown', onStoryEvent);
+                overlay.classList.add('hidden');
+                if (currentStorySegment === 2) {
+                    playCutsceneVideo(() => {
+                        startStoryGameplay();
+                    });
+                } else {
+                    startStoryGameplay();
                 }
             }
         }
     }
-    document.addEventListener('keydown', onStoryKey);
+    
+    document.addEventListener('keydown', onStoryEvent);
+    document.addEventListener('mousedown', onStoryEvent);
+    
+    // Make the whole screen act as confirm
+    overlay.addEventListener('touchstart', onStoryTouch);
+
+    function onStoryTouch(event) {
+        if (isTyping) {
+            finishTypingCurrentLine();
+        } else {
+            currentLine++;
+            if (currentLine < segment.text.length) {
+                typeNextLine();
+            } else {
+                // Proceed to gameplay
+                overlay.removeEventListener('touchstart', onStoryTouch);
+                overlay.classList.add('hidden');
+                startStoryGameplay();
+            }
+        }
+    }
 }
 
 function typeNextLine() {
@@ -1263,6 +1541,8 @@ function initGame(mode) {
     } else {
         playBGM('game'); // Play default game music
     }
+    
+    showTouchControls();
 
     // Hide overlay
     let overlay = document.getElementById('overlay');
@@ -1351,6 +1631,8 @@ function showGameOverScreen() {
 
     // Stop game music
     stopAllBGM();
+    
+    hideTouchControls();
 
     // Hide score and next piece
     document.getElementById('score').style.display = 'none';
@@ -1432,30 +1714,38 @@ function addDynamicBackground() {
     backgroundMesh.renderOrder = -1; // Ensure it's rendered behind other objects
     scene.add(backgroundMesh);
 
-    /* Blue cyan gradient */
-    const geometry = new THREE.SphereGeometry(500, 32, 32);
-    const material = new THREE.ShaderMaterial({
+    // Create a gradient texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+
+    // Create gradient
+    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#00ffff'); // Cyan
+    gradient.addColorStop(1, '#0000ff'); // Blue
+
+    // Fill rectangle with gradient
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Create texture
+    const gradientTexture = new THREE.CanvasTexture(canvas);
+    gradientTexture.magFilter = THREE.LinearFilter;
+    gradientTexture.minFilter = THREE.LinearMipMapLinearFilter;
+
+    // Create material using the gradient texture
+    const gradientMaterial = new THREE.MeshBasicMaterial({
+        map: gradientTexture,
         side: THREE.BackSide,
-        uniforms: {},
-        vertexShader: `
-					varying vec3 vWorldPosition;
-					void main() {
-						vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-						vWorldPosition = worldPosition.xyz;
-						gl_Position = projectionMatrix * viewMatrix * worldPosition;
-					}
-				`,
-        fragmentShader: `
-					varying vec3 vWorldPosition;
-					void main() {
-						float h = normalize(vWorldPosition).y;
-						gl_FragColor = vec4(mix(vec3(0.0, 1.0, 1.0), vec3(0.0, 0.0, 1.0), h * 0.5 + 0.5), 1.0);
-					}
-				`
     });
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
+
+    // Create geometry and mesh
+    const sphereGeometry = new THREE.SphereGeometry(500, 32, 32);
+    const sphereMesh = new THREE.Mesh(sphereGeometry, gradientMaterial);
+    scene.add(sphereMesh);
 }
+
 
 
 function addPlayfield(centerX, centerY, centerZ) {
@@ -1543,7 +1833,7 @@ function displayNextPiece() {
     nextPiece.rotation.set(0, 0, 0);
     nextPieceScene.add(nextPiece);
 
-    let renderer = new THREE.WebGLRenderer({
+    let renderer = new THREE.WebGPURenderer({
         alpha: true
     });
     renderer.setSize(150, 150);
@@ -1551,7 +1841,7 @@ function displayNextPiece() {
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    renderer.render(nextPieceScene, camera);
+    renderer.renderAsync(nextPieceScene, camera);
 }
 
 function createPiece(type) {
@@ -1780,6 +2070,12 @@ function animate() {
         applySmoothRotation();
         applyScreenShake();
         updateLabels();
+        
+
+        // Handle touch joystick movement
+        if (touchControlsVisible) {
+            handleJoystickMovement();
+        }
 
         if (gameMode === 'story') {
             updateTime();
@@ -1812,7 +2108,7 @@ function animate() {
         currentPiece.rotation.x += rotateY * 0.05;
     }
     
-    renderer.render(scene, camera);
+    renderer.renderAsync(scene, camera);
 
 }
 
@@ -2663,6 +2959,8 @@ function showWinningScreen() {
 
     // Play winning music
     bgm.win.play();
+    
+    hideTouchControls();
 
     // Clear the scene
     //clearScene();
