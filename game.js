@@ -50,6 +50,8 @@ let gameState = 'title'; // 'title', 'menu', 'game', 'gameover', 'story'
 // Game mode variables
 let gameMode = 'arcade'; // 'arcade' or 'story'
 
+let canProceed = true;
+
 // Define game actions
 const gameActions = [
     'Left',
@@ -217,7 +219,7 @@ let joystick = {
 };
 
 function isMobileDevice() {
-    return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     //return 1;
 }
 
@@ -370,6 +372,11 @@ function initTouchControls() {
     const touchControls = document.getElementById('touch-controls');
     joystick.base = document.getElementById('joystick-base');
     joystick.thumb = document.getElementById('joystick-thumb');
+    
+	joystick.onMove = function(dx, dy) {
+		joystick.normalizedX = dx;
+		joystick.normalizedY = dy;
+	};
 
     // Joystick event listeners
     joystick.base.addEventListener('touchstart', onJoystickStart, false);
@@ -507,9 +514,11 @@ function handleJoystickMovement() {
             currentPiece.position.sub(deltaPosition);
         } else {
             updateShadowPiece();
+            playSFX('move'); // Optional: Play move sound effect
         }
     }
 }
+
 
 function showTouchControls() {
     if (!isMobile) return; // Only show on mobile devices
@@ -1080,13 +1089,25 @@ function playSFX(effect) {
 
 function playVoiceOver(segmentIndex, lineIndex) {
     let segmentKey = 'segment' + segmentIndex;
+
+    // Stop all voice overs before playing a new one
+    stopAllVoiceOver();
+
     if (voiceOver[segmentKey] && voiceOver[segmentKey][lineIndex]) {
-        if (lineIndex > 0) {
-            voiceOver[segmentKey][lineIndex - 1].stop();
-        }
         voiceOver[segmentKey][lineIndex].play();
     }
 }
+
+function stopAllVoiceOver() {
+    for (let segment in voiceOver) {
+        voiceOver[segment].forEach(sound => {
+            if (sound.playing()) {
+                sound.stop();
+            }
+        });
+    }
+}
+
 
 function showTitleScreen() {
     // Clear the scene
@@ -1175,6 +1196,7 @@ function showMainMenu() {
 
 function onMenuOptionSelect(event) {
     event.preventDefault(); // Prevent default behavior, especially for touch events
+    event.stopPropagation(); // Prevent the event from bubbling up
 
     // Get the selected option index from the dataset
     const index = parseInt(event.currentTarget.dataset.index);
@@ -1193,6 +1215,7 @@ function onMenuOptionSelect(event) {
         }
     }
 }
+
 
 
 // Define the create3DMenuOptions() function
@@ -1261,7 +1284,7 @@ function startArcadeMode() {
 
 function startStoryMode() {
     // Initialize variables
-    currentStorySegment = 0;
+    currentStorySegment = 2;
     showStorySegment();
 }
 
@@ -1275,13 +1298,6 @@ function stopAllSFX() {
     }
 }
 
-function stopAllVoiceOver() {
-    for (let segment in voiceOver) {
-        voiceOver[segment].forEach(sound => {
-            sound.stop();
-        });
-    }
-}
 
 function animateCharactersIn(callback) {
     let character1 = document.getElementById('character1');
@@ -1368,57 +1384,53 @@ function showStorySegment() {
         typeNextLine();
     });
     
-    function onStoryEvent(event) {
-        if (event.type === 'keydown' && (event.keyCode !== 13 && event.keyCode !== 32)) {
-            return; // Only proceed on Enter or Space
-        }
-        if (isTyping) {
-            // Finish current line instantly
-            finishTypingCurrentLine();
-        } else {
-            currentLine++;
-            if (currentLine < segment.text.length) {
-                typeNextLine();
-            } else {
-                stopAllSFX();
-                stopAllVoiceOver();
+	function onStoryEvent(event) {
+		event.preventDefault(); // Prevent default behavior
+		event.stopPropagation(); // Prevent the event from bubbling up
+		
+		// For keydown events, only proceed on Enter or Space
+		if (event.type === 'keydown' && !(event.key === 'Enter' || event.key === ' ')) {
+			return;
+		}
 
-                // All lines done, proceed
-                document.removeEventListener('keydown', onStoryEvent);
-                document.removeEventListener('mousedown', onStoryEvent);
-                overlay.classList.add('hidden');
-                if (currentStorySegment === 2) {
-                    playCutsceneVideo(() => {
-                        startStoryGameplay();
-                    });
-                } else {
-                    startStoryGameplay();
-                }
-            }
-        }
+		if (!canProceed) return; // Prevent rapid skipping
+		canProceed = false;
+		setTimeout(() => canProceed = true, 300); // Adjust the debounce delay as needed
+
+		if (isTyping) {
+			finishTypingCurrentLine();
+		} else {
+			currentLine++;
+			if (currentLine < segment.text.length) {
+				typeNextLine();
+			} else {
+				stopAllSFX();
+				stopAllVoiceOver();
+
+				// All lines done, proceed
+				removeStoryEventListeners();
+				overlay.classList.add('hidden');
+				if (currentStorySegment === 2) {
+					playCutsceneVideo(() => {
+						startStoryGameplay();
+					});
+				} else {
+					startStoryGameplay();
+				}
+			}
+		}
+	}
+
+    function removeStoryEventListeners() {
+        document.removeEventListener('keydown', onStoryEvent);
+        document.removeEventListener('mousedown', onStoryEvent);
+        overlay.removeEventListener('touchstart', onStoryEvent);
     }
-    
+
+    // Add event listeners
     document.addEventListener('keydown', onStoryEvent);
     document.addEventListener('mousedown', onStoryEvent);
-    
-    // Make the whole screen act as confirm
-    overlay.addEventListener('touchstart', onStoryTouch);
-
-    function onStoryTouch(event) {
-        if (isTyping) {
-            finishTypingCurrentLine();
-        } else {
-            currentLine++;
-            if (currentLine < segment.text.length) {
-                typeNextLine();
-            } else {
-                // Proceed to gameplay
-                overlay.removeEventListener('touchstart', onStoryTouch);
-                overlay.classList.add('hidden');
-                startStoryGameplay();
-            }
-        }
-    }
+    overlay.addEventListener('touchstart', onStoryEvent);
 }
 
 function typeNextLine() {
@@ -1658,12 +1670,17 @@ function showGameOverScreen() {
     }
     overlay.classList.remove('hidden');
 
-    // Return to menu on key press
-    function onReturnKey() {
-        document.removeEventListener('keydown', onReturnKey);
+    // Return to menu on key press or click/touch
+    function onReturn() {
+        document.removeEventListener('keydown', onReturn);
+        document.removeEventListener('mousedown', onReturn);
+        document.removeEventListener('touchstart', onReturn);
         showMainMenu();
     }
-    document.addEventListener('keydown', onReturnKey);
+
+    document.addEventListener('keydown', onReturn);
+    document.addEventListener('mousedown', onReturn);
+    document.addEventListener('touchstart', onReturn);
 }
 
 function clearScene() {
@@ -2602,31 +2619,43 @@ function onDocumentKeyDown(event) {
             rebindKey(key);
             return;
         }
+        
+        switch(key)
+        {
+			case 'ArrowUp':
+				selectedKeyConfigOption = (selectedKeyConfigOption - 1 + keyConfigOptions.length) % keyConfigOptions.length;
+				updateKeyConfigMenu();
+			break;
+			case 'ArrowDown':
+				selectedKeyConfigOption = (selectedKeyConfigOption + 1) % keyConfigOptions.length;
+				updateKeyConfigMenu();
+			break;
+			case 'Enter':
+				waitingForKeyBinding = true;
+				promptForNewKey();
+			break;
+			case 'Escape':
+				showMainMenu();
+			break;
+		}
 
-        if (key === 'ArrowUp') {
-            selectedKeyConfigOption = (selectedKeyConfigOption - 1 + keyConfigOptions.length) % keyConfigOptions.length;
-            updateKeyConfigMenu();
-        } else if (key === 'ArrowDown') {
-            selectedKeyConfigOption = (selectedKeyConfigOption + 1) % keyConfigOptions.length;
-            updateKeyConfigMenu();
-        } else if (key === 'Enter') {
-            waitingForKeyBinding = true;
-            promptForNewKey();
-        } else if (key === 'Escape') {
-            showMainMenu();
-        }
+
         return;
     }
 
     if (gameState === 'menu') {
-        // Handle menu navigation
-        if (key === 'ArrowUp') {
+		
+        switch(key)
+        {
+			case 'ArrowUp':
             selectedOption = (selectedOption - 1 + menuOptions.length) % menuOptions.length;
             updateMenuSelection();
-        } else if (key === 'ArrowDown') {
+			break;
+			case 'ArrowDown':
             selectedOption = (selectedOption + 1) % menuOptions.length;
             updateMenuSelection();
-        } else if (key === 'Enter') {
+			break;
+			case 'Enter':
             if (selectedOption === 0) {
                 startStoryMode();
             } else if (selectedOption === 1) {
@@ -2634,7 +2663,9 @@ function onDocumentKeyDown(event) {
             } else if (selectedOption === 2) {
                 showKeyConfigMenu();
             }
-        }
+			break;
+		}
+
         return;
     }
 
@@ -2986,10 +3017,12 @@ function showWinningScreen() {
         }
     }, 500);
 
-    // Return to menu or next story segment on key press
-    function onWinKey(event) {
-        console.log("Win key pressed");
-        document.removeEventListener('keydown', onWinKey);
+    // Return to menu or next story segment on key press or click/touch
+    function onWinInput(event) {
+        console.log("Win input detected");
+        document.removeEventListener('keydown', onWinInput);
+        document.removeEventListener('mousedown', onWinInput);
+        document.removeEventListener('touchstart', onWinInput);
         bgm.win.stop(); // Stop winning music
         if (gameMode === 'story') {
             proceedToNextStorySegment();
@@ -2997,7 +3030,10 @@ function showWinningScreen() {
             showMainMenu();
         }
     }
-    document.addEventListener('keydown', onWinKey);
+
+    document.addEventListener('keydown', onWinInput);
+    document.addEventListener('mousedown', onWinInput);
+    document.addEventListener('touchstart', onWinInput);
 }
 
 function playCutsceneVideo(callback) {
