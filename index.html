@@ -221,9 +221,20 @@
 
 		/* Fullscreen Button Transition Styles */
 		#fullscreen-button {
-			transition: opacity 0.5s ease, visibility 0.5s ease;
-			opacity: 1;
-			visibility: visible;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 40;
+            width: 100px;
+            height: 40px;
+            background: rgba(100, 100, 100, 0.5);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            user-select: none;
 		}
 
 		#fullscreen-button.hidden {
@@ -486,19 +497,27 @@
 
 			<!-- Action Buttons (Bottom Right) -->
 			<div id="action-buttons">
-				<!-- Rotate Buttons -->
-				<div id="rotate-buttons">
+				<!-- Rotation Buttons Grouped by Axis -->
+				<div class="rotate-group">
 					<button class="rotate-button" data-action="Rotate X Positive">X+</button>
 					<button class="rotate-button" data-action="Rotate X Negative">X-</button>
+				</div>
+				<div class="rotate-group">
 					<button class="rotate-button" data-action="Rotate Y Positive">Y+</button>
 					<button class="rotate-button" data-action="Rotate Y Negative">Y-</button>
+				</div>
+				<div class="rotate-group">
 					<button class="rotate-button" data-action="Rotate Z Positive">Z+</button>
 					<button class="rotate-button" data-action="Rotate Z Negative">Z-</button>
 				</div>
-				<!-- Other Buttons -->
-				<button id="fast-drop-button" data-action="Fast Drop">Fast Drop</button>
-				<button id="drop-piece-button" data-action="Drop Piece">Drop Piece</button>
+				
+				<!-- Fast Drop & Drop Piece Buttons -->
+				<div id="drop-buttons">
+					<button id="fast-drop-button" data-action="Fast Drop">Fast Drop</button>
+					<button id="drop-piece-button" data-action="Drop Piece">Drop Piece</button>
+				</div>
 			</div>
+
 
 			<!-- Camera Control Area (Middle) -->
 			<div id="camera-controls" class="hidden">

@@ -455,7 +455,7 @@ function onCameraTouchEnd(event) {
 }
 
 let lastActionTime = 0;
-const actionCooldown = 60; // 60ms cooldown
+const actionCooldown = 60; // 6 cooldown
 
 function handleActionWithThrottle(action, callback) {
     const currentTime = Date.now();
@@ -1280,7 +1280,7 @@ function onMenuOptionSelect(event) {
             startStoryMode();
         } else if (selectedOption === 1) {
             startArcadeMode();
-        } else if (selectedOption === 2) {
+        } else if (selectedOption === 2 && isMobileDevice() == 0) {
             showKeyConfigMenu();
         }
     }
@@ -1328,7 +1328,7 @@ function handleMenuSelection(selectedObject) {
             startStoryMode();
         } else if (selectedIndex === 1) {
             startArcadeMode();
-        } else if (selectedIndex === 2) {
+        } else if (selectedIndex === 2  && isMobileDevice() == 0) {
             showKeyConfigMenu();
         }
     }
@@ -2744,7 +2744,7 @@ function onDocumentKeyDown(event) {
                 startStoryMode();
             } else if (selectedOption === 1) {
                 startArcadeMode();
-            } else if (selectedOption === 2) {
+            } else if (selectedOption === 2  && isMobileDevice() == 0) {
                 showKeyConfigMenu();
             }
 			break;
