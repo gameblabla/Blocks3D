@@ -377,7 +377,7 @@ function initTouchControls() {
         button.addEventListener('touchend', onDpadButtonRelease, false);
     });
 
-    // Action buttons event listeners remain unchanged
+    // Action buttons event listeners
     const rotateButtons = document.getElementsByClassName('rotate-button');
     for (let button of rotateButtons) {
         button.addEventListener('touchstart', onActionButtonPress, false);
@@ -399,7 +399,7 @@ function initTouchControls() {
     cameraControls.addEventListener('touchend', onCameraTouchEnd, false);
 }
 
-// Variables to track touch movements for camera controls
+// Existing Camera Control Handlers
 let isCameraTouching = false;
 let lastCameraTouchX = 0;
 let lastCameraTouchY = 0;
@@ -454,20 +454,34 @@ function onCameraTouchEnd(event) {
     event.stopPropagation();
 }
 
+// Action Buttons Event Handlers
+function onActionButtonPress(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const action = event.target.getAttribute('data-action');
+    handleTouchAction(action, true);
+}
 
-// Handler for D-pad button press
+function onActionButtonRelease(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const action = event.target.getAttribute('data-action');
+    handleTouchAction(action, false);
+}
+
+// D-Pad Event Handlers remain unchanged
 function onDpadButtonPress(event) {
     event.preventDefault();
     const direction = event.target.getAttribute('data-direction');
     handleDpadAction(direction, true);
 }
 
-// Handler for D-pad button release
 function onDpadButtonRelease(event) {
     event.preventDefault();
     const direction = event.target.getAttribute('data-direction');
     handleDpadAction(direction, false);
 }
+
 
 // Function to handle D-pad actions
 function handleDpadAction(direction, isPressed) {
@@ -489,17 +503,6 @@ function handleDpadAction(direction, isPressed) {
     }
 }
 
-function onActionButtonPress(event) {
-	event.preventDefault();
-    const action = event.target.getAttribute('data-action');
-    handleTouchAction(action, true);
-}
-
-function onActionButtonRelease(event) {
-	event.preventDefault();
-    const action = event.target.getAttribute('data-action');
-    handleTouchAction(action, false);
-}
 
 function handleTouchAction(action, isPressed) {
     if (isPressed) {

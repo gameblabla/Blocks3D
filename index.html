@@ -283,6 +283,7 @@
 		flex-direction: column;
 		align-items: center;
 		pointer-events: auto;
+		z-index: 30;
 	}
 
 	#rotate-buttons {
@@ -334,10 +335,10 @@
 	/* Camera Control Area Styling */
 	#camera-controls {
 		position: absolute;
-		top: 25%;
-		left: 25%;
-		width: 50%;
-		height: 50%;
+		top: 0%;
+		left: 0%;
+		width: 100%;
+		height: 100%;
 		/* Optional: Visual Indicator (Remove if not needed) */
 		/* background: rgba(255, 255, 255, 0.1); */
 		pointer-events: auto; /* Enable touch interactions */
@@ -360,6 +361,10 @@
 		pointer-events: auto;
 	}
 
+	#camera-controls
+	{
+		z-index: 21;
+	}
 		
 	/* D-Pad Styling */
 	#dpad {
@@ -373,6 +378,7 @@
 		grid-template-rows: repeat(3, 50px);
 		gap: 5px;
 		pointer-events: auto; /* Enable touch interactions */
+		z-index : 30;
 	}
 
 	#dpad .dpad-button {
@@ -386,6 +392,7 @@
 		cursor: pointer;
 		user-select: none;
 		transition: background 0.2s;
+		
 	}
 
 	/* Positioning Buttons */
