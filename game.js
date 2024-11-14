@@ -1284,7 +1284,7 @@ function startArcadeMode() {
 
 function startStoryMode() {
     // Initialize variables
-    currentStorySegment = 2;
+    currentStorySegment = 0;
     showStorySegment();
 }
 
@@ -1481,7 +1481,14 @@ function startStoryGameplay() {
     if (storyTextBackground) {
         storyTextBackground.style.display = 'none'; // Hide the text box
     }
+
+    // **Add this code to hide the story text container**
+    let storyText = document.getElementById('story-text');
+    if (storyText) {
+        storyText.style.display = 'none';
+    }
 }
+
 
 function showStoryConclusion() {
     // Display the final story segment
@@ -1698,7 +1705,14 @@ function clearScene() {
     // Clear overlay
     let overlay = document.getElementById('overlay');
     overlay.innerHTML = '';
+
+    // **Hide the story text element**
+    let storyText = document.getElementById('story-text');
+    if (storyText) {
+        storyText.style.display = 'none';
+    }
 }
+
 
 function addDynamicBackground() {
     const worldWidth = 128,

@@ -237,15 +237,16 @@
 		}
 		
 		/* Touch Controls Styling */
-	#touch-controls {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		pointer-events: none; /* Allow touches to pass through to children */
-		z-index: 10;
-	}
+		#touch-controls {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			pointer-events: none; /* Allow touches to pass through to children */
+			z-index: 20; /* Increase z-index to be above other elements */
+		}
+
 
 	#left-analog-stick {
 		position: absolute;
