@@ -367,23 +367,17 @@ function init() {
 
 /* Touchscreen controls */
 
-
 function initTouchControls() {
     const touchControls = document.getElementById('touch-controls');
-    joystick.base = document.getElementById('joystick-base');
-    joystick.thumb = document.getElementById('joystick-thumb');
     
-	joystick.onMove = function(dx, dy) {
-		joystick.normalizedX = dx;
-		joystick.normalizedY = dy;
-	};
+    // Initialize D-pad buttons
+    const dpadButtons = document.querySelectorAll('.dpad-button');
+    dpadButtons.forEach(button => {
+        button.addEventListener('touchstart', onDpadButtonPress, false);
+        button.addEventListener('touchend', onDpadButtonRelease, false);
+    });
 
-    // Joystick event listeners
-    joystick.base.addEventListener('touchstart', onJoystickStart, false);
-    joystick.base.addEventListener('touchmove', onJoystickMove, false);
-    joystick.base.addEventListener('touchend', onJoystickEnd, false);
-
-    // Action buttons event listeners
+    // Action buttons event listeners remain unchanged
     const rotateButtons = document.getElementsByClassName('rotate-button');
     for (let button of rotateButtons) {
         button.addEventListener('touchstart', onActionButtonPress, false);
@@ -397,40 +391,102 @@ function initTouchControls() {
     const dropPieceButton = document.getElementById('drop-piece-button');
     dropPieceButton.addEventListener('touchstart', onActionButtonPress, false);
     dropPieceButton.addEventListener('touchend', onActionButtonRelease, false);
+
+    // Initialize Camera Controls
+    const cameraControls = document.getElementById('camera-controls');
+    cameraControls.addEventListener('touchstart', onCameraTouchStart, false);
+    cameraControls.addEventListener('touchmove', onCameraTouchMove, false);
+    cameraControls.addEventListener('touchend', onCameraTouchEnd, false);
 }
 
-function onJoystickStart(event) {
-    const touch = event.targetTouches[0];
-    const rect = joystick.base.getBoundingClientRect();
-    joystick.centerX = rect.left + rect.width / 2;
-    joystick.centerY = rect.top + rect.height / 2;
-    joystick.thumb.style.transition = '0s';
+// Variables to track touch movements for camera controls
+let isCameraTouching = false;
+let lastCameraTouchX = 0;
+let lastCameraTouchY = 0;
+let cameraRotationSpeed = 0.005; // Adjust rotation sensitivity as needed
+
+function onCameraTouchStart(event) {
+    if (isVRMode) return; // Disable camera touch controls in VR mode
+    if (event.touches.length === 1) { // Single touch
+        isCameraTouching = true;
+        lastCameraTouchX = event.touches[0].clientX;
+        lastCameraTouchY = event.touches[0].clientY;
+
+        // Prevent touch event from propagating to other elements
+        event.preventDefault();
+        event.stopPropagation();
+    }
 }
 
-function onJoystickMove(event) {
-    event.preventDefault(); // Prevent scrolling
-    const touch = event.targetTouches[0];
-    const dx = touch.clientX - joystick.centerX;
-    const dy = touch.clientY - joystick.centerY;
-    const distance = Math.min(joystick.maxDistance, Math.hypot(dx, dy));
-    const angle = Math.atan2(dy, dx);
+function onCameraTouchMove(event) {
+    if (isVRMode) return; // Disable camera touch controls in VR mode
+    if (isCameraTouching && event.touches.length === 1) {
+        let touch = event.touches[0];
+        let deltaX = touch.clientX - lastCameraTouchX;
+        let deltaY = touch.clientY - lastCameraTouchY;
 
-    const x = distance * Math.cos(angle);
-    const y = distance * Math.sin(angle);
+        // Update horizontal and vertical angles based on touch movement
+        horizontalAngle -= deltaX * cameraRotationSpeed;
+        verticalAngle += deltaY * cameraRotationSpeed;
 
-    joystick.thumb.style.transform = `translate(${x}px, ${y}px)`;
+        // Clamp vertical angle to prevent flipping
+        verticalAngle = Math.max(minVerticalAngle, Math.min(maxVerticalAngle, verticalAngle));
 
-    // Normalize the movement
-    const normalizedX = x / joystick.maxDistance;
-    const normalizedY = y / joystick.maxDistance;
+        // Update camera position based on new angles
+        updateCameraPosition();
 
-    joystick.onMove(normalizedX, normalizedY);
+        // Update last touch positions
+        lastCameraTouchX = touch.clientX;
+        lastCameraTouchY = touch.clientY;
+
+        // Prevent touch event from propagating to other elements
+        event.preventDefault();
+        event.stopPropagation();
+    }
 }
 
-function onJoystickEnd(event) {
-    joystick.thumb.style.transition = '0.2s';
-    joystick.thumb.style.transform = 'translate(0px, 0px)';
-    joystick.onMove(0, 0);
+function onCameraTouchEnd(event) {
+    if (isVRMode) return; // Disable camera touch controls in VR mode
+    isCameraTouching = false;
+
+    // Prevent touch event from propagating to other elements
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+
+// Handler for D-pad button press
+function onDpadButtonPress(event) {
+    event.preventDefault();
+    const direction = event.target.getAttribute('data-direction');
+    handleDpadAction(direction, true);
+}
+
+// Handler for D-pad button release
+function onDpadButtonRelease(event) {
+    event.preventDefault();
+    const direction = event.target.getAttribute('data-direction');
+    handleDpadAction(direction, false);
+}
+
+// Function to handle D-pad actions
+function handleDpadAction(direction, isPressed) {
+    if (isPressed) {
+        switch(direction) {
+            case 'up':
+                handleMovement('Forward');
+                break;
+            case 'down':
+                handleMovement('Backward');
+                break;
+            case 'left':
+                handleMovement('Left');
+                break;
+            case 'right':
+                handleMovement('Right');
+                break;
+        }
+    }
 }
 
 function onActionButtonPress(event) {

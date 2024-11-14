@@ -330,6 +330,90 @@
 		text-align: center;
 		list-style-type: none;
 	}
+	
+	/* Camera Control Area Styling */
+	#camera-controls {
+		position: absolute;
+		top: 25%;
+		left: 25%;
+		width: 50%;
+		height: 50%;
+		/* Optional: Visual Indicator (Remove if not needed) */
+		/* background: rgba(255, 255, 255, 0.1); */
+		pointer-events: auto; /* Enable touch interactions */
+		z-index: 15; /* Ensure it's above other touch controls */
+	}
+
+	/* Ensure touch-controls covers the entire screen but camera-controls are within it */
+	#touch-controls {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none; /* Allow touches to pass through to children */
+		z-index: 20; /* Increase z-index to be above other elements */
+	}
+
+	/* Enable pointer-events for child elements */
+	#dpad, #action-buttons, #camera-controls {
+		pointer-events: auto;
+	}
+
+		
+	/* D-Pad Styling */
+	#dpad {
+		position: absolute;
+		bottom: 20px;
+		left: 20px;
+		width: 150px;
+		height: 150px;
+		display: grid;
+		grid-template-columns: repeat(3, 50px);
+		grid-template-rows: repeat(3, 50px);
+		gap: 5px;
+		pointer-events: auto; /* Enable touch interactions */
+	}
+
+	#dpad .dpad-button {
+		width: 50px;
+		height: 50px;
+		background: rgba(100, 100, 100, 0.5);
+		color: #fff;
+		border: none;
+		border-radius: 5px;
+		font-size: 20px;
+		cursor: pointer;
+		user-select: none;
+		transition: background 0.2s;
+	}
+
+	/* Positioning Buttons */
+	#dpad .dpad-button[data-direction="up"] {
+		grid-column: 2 / 3;
+		grid-row: 1 / 2;
+	}
+
+	#dpad .dpad-button[data-direction="left"] {
+		grid-column: 1 / 2;
+		grid-row: 2 / 3;
+	}
+
+	#dpad .dpad-button[data-direction="down"] {
+		grid-column: 2 / 3;
+		grid-row: 3 / 4;
+	}
+
+	#dpad .dpad-button[data-direction="right"] {
+		grid-column: 3 / 4;
+		grid-row: 2 / 3;
+	}
+
+	/* Button Press Effect */
+	#dpad .dpad-button:active {
+		background: rgba(150, 150, 150, 0.7);
+	}
+	
 		
     </style>
     <!-- Import map for module imports -->
@@ -375,11 +459,12 @@
 		
 		<!-- Touch Controls Overlay -->
 		<div id="touch-controls" class="hidden">
-			<!-- Left Analog Stick -->
-			<div id="left-analog-stick">
-				<div id="joystick-base">
-					<div id="joystick-thumb"></div>
-				</div>
+			<!-- D-Pad -->
+			<div id="dpad">
+				<button class="dpad-button" data-direction="up">↑</button>
+				<button class="dpad-button" data-direction="left">←</button>
+				<button class="dpad-button" data-direction="down">↓</button>
+				<button class="dpad-button" data-direction="right">→</button>
 			</div>
 
 			<!-- Action Buttons -->
@@ -397,7 +482,14 @@
 				<button id="fast-drop-button" data-action="Fast Drop">Fast Drop</button>
 				<button id="drop-piece-button" data-action="Drop Piece">Drop Piece</button>
 			</div>
+
+			<!-- New Camera Control Area -->
+			<div id="camera-controls" class="hidden">
+				<!-- This div will capture touch events for camera movement -->
+			</div>
 		</div>
+
+
 
 
 		<!-- Loading Screen -->
