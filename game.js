@@ -1240,8 +1240,14 @@ function showMainMenu() {
     let menuOptionsList = document.getElementById('menu-options');
     menuOptionsList.style.listStyleType = 'none';
     menuOptionsList.style.padding = 0;
+    
+    let len_menu = menuOptions.length;
+    if (isMobileDevice())
+    {
+		len_menu -= 1;
+	}
 
-    for (let i = 0; i < menuOptions.length; i++) {
+    for (let i = 0; i < len_menu; i++) {
         let option = document.createElement('li');
         option.innerText = menuOptions[i];
         option.style.fontSize = '32px';
@@ -2144,7 +2150,21 @@ function detectShadowCollision() {
     return false;
 }
 
+let frames = 0, prevTime = performance.now();
+let currentfps = 60;
 function animate() {
+	
+	/* To calculate ingame FPS */
+	
+    frames ++;
+    const time = performance.now();
+    
+    if ( time >= prevTime + 1000 ) {
+		currentfps = Math.round( ( frames * 1000 ) / ( time - prevTime ) );
+		//console.log( currentfps ); // Display current FPS
+		frames = 0;
+		prevTime = time;
+    }
 
     // Update background
     if (backgroundGeometry) {
@@ -3037,8 +3057,9 @@ function updateCameraPosition() {
     camera.lookAt(new THREE.Vector3(centerX, centerY, centerZ));
 }
 
+
 function updateTime() {
-    timeRemaining -= 1 / 60; // Assuming 60fps
+    timeRemaining -= 1 / currentfps;
     if (timeRemaining <= 0) {
         timeRemaining = 0;
         gameOver = true;
